@@ -155,9 +155,9 @@ function Accountant_OnLoad()
 	AccountantFrameTab1:SetText(ACCLOC_SESS);
 	PanelTemplates_TabResize(10, AccountantFrameTab1);
 	AccountantFrameTab2:SetText(ACCLOC_DAY);
-	PanelTemplates_TabResize(10, AccountantFrameTab1);
-	AccountantFrameTab3:SetText(ACCLOC_WEEK);
 	PanelTemplates_TabResize(10, AccountantFrameTab2);
+	AccountantFrameTab3:SetText(ACCLOC_WEEK);
+	PanelTemplates_TabResize(10, AccountantFrameTab3);
 	AccountantFrameTab4:SetText(ACCLOC_TOTAL);
 	PanelTemplates_TabResize(10, AccountantFrameTab4);
 	AccountantFrameTab5:SetText(ACCLOC_CHARS);
@@ -165,6 +165,8 @@ function Accountant_OnLoad()
 	PanelTemplates_SetNumTabs(AccountantFrame, 5);
 	PanelTemplates_SetTab(AccountantFrame, AccountantFrameTab1);
 	PanelTemplates_UpdateTabs(AccountantFrame);
+
+	Accountant_CheckDate();
 	
 	ACC_Print(ACCLOC_TITLE.." " .. Accountant_Version .. " "..ACCLOC_LOADED);
 end
@@ -402,31 +404,6 @@ function Accountant_WeekStart()
 end
 
 function Accountant_OnShow()
-	-- Check to see if the day has rolled over
-	cdate = date();
-	cdate = string.sub(cdate,0,8);
-	if Accountant_SaveData[Accountant_Player]["options"]["date"] ~= cdate then
-		-- Its a new day! clear out the day tab
-		for mode,value in Accountant_Data do
-			Accountant_Data[mode]["Day"].In = 0;
-			Accountant_SaveData[Accountant_Player]["data"][mode]["Day"].In = 0;
-			Accountant_Data[mode]["Day"].Out = 0;
-			Accountant_SaveData[Accountant_Player]["data"][mode]["Day"].Out = 0;
-		end
-	end
-	Accountant_SaveData[Accountant_Player]["options"]["date"] = cdate;
-	-- Check to see if the week has rolled over
-	if Accountant_SaveData[Accountant_Player]["options"]["dateweek"] ~= Accountant_WeekStart() then
-		-- Its a new week! clear out the week tab
-		for mode,value in Accountant_Data do
-			Accountant_Data[mode]["Week"].In = 0;
-			Accountant_SaveData[Accountant_Player]["data"][mode]["Week"].In = 0;
-			Accountant_Data[mode]["Week"].Out = 0;
-			Accountant_SaveData[Accountant_Player]["data"][mode]["Week"].Out = 0;
-		end
-	end
-	Accountant_SaveData[Accountant_Player]["options"]["dateweek"] = Accountant_WeekStart();
-
 	Accountant_SetLabels();
 	if Accountant_CurrentTab ~= 5 then
 		TotalIn = 0;
@@ -525,7 +502,36 @@ function Accountant_ResetConfirmed()
 	end
 end
 
+function Accountant_CheckDate()
+    local cdate = date();
+    cdate = string.sub(cdate,0,8);
+    
+    -- 날짜가 바뀌었는지 확인
+    if Accountant_SaveData[Accountant_Player]["options"]["date"] ~= cdate then
+        for mode,value in Accountant_Data do
+            Accountant_Data[mode]["Day"].In = 0;
+            Accountant_SaveData[Accountant_Player]["data"][mode]["Day"].In = 0;
+            Accountant_Data[mode]["Day"].Out = 0;
+            Accountant_SaveData[Accountant_Player]["data"][mode]["Day"].Out = 0;
+        end
+        Accountant_SaveData[Accountant_Player]["options"]["date"] = cdate;
+    end
+
+    -- 주간 단위 체크
+    if Accountant_SaveData[Accountant_Player]["options"]["dateweek"] ~= Accountant_WeekStart() then
+        for mode,value in Accountant_Data do
+            Accountant_Data[mode]["Week"].In = 0;
+            Accountant_SaveData[Accountant_Player]["data"][mode]["Week"].In = 0;
+            Accountant_Data[mode]["Week"].Out = 0;
+            Accountant_SaveData[Accountant_Player]["data"][mode]["Week"].Out = 0;
+        end
+        Accountant_SaveData[Accountant_Player]["options"]["dateweek"] = Accountant_WeekStart();
+    end
+end
+
 function Accountant_UpdateLog()
+	Accountant_CheckDate();
+
 	Accountant_CurrentMoney = GetMoney();
 	Accountant_SaveData[Accountant_Player]["options"].totalcash = Accountant_CurrentMoney;
 	diff = Accountant_CurrentMoney - Accountant_LastMoney;
