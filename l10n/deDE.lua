@@ -21,7 +21,7 @@ if GetLocale() == "deDE" then
   -- Section Labels
   ACCLOC_LOOT = "Beute"
   ACCLOC_QUEST = "Quest Belohnung"
-  ACCLOC_MERCH = "H\195\164ndler"
+  ACCLOC_MERCH = "HÃ¤ndler"
   ACCLOC_TRADE = "Handelsfenster"
   ACCLOC_MAIL = "Post"
   ACCLOC_TRAIN = "Ausbildungskosten"
@@ -58,8 +58,8 @@ if GetLocale() == "deDE" then
 
   -- Misc
   ACCLOC_RESET_CONF = "Die Einstellungen wirklich zuruecksetzen"
-  ACCLOC_NEWPROFILE = "Neues Accountant Profil erstellt für"
-  ACCLOC_LOADPROFILE = "Accountant Profil geladen für"
+  ACCLOC_NEWPROFILE = "Neues Accountant Profil erstellt fÃ¼r"
+  ACCLOC_LOADPROFILE = "Accountant Profil geladen fÃ¼r"
   ACCLOC_LOADED = "Loaded"
 
   -- Key Bindings headers
