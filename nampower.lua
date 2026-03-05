@@ -37,7 +37,11 @@ local NampowerDB_Frame = nil
 local function NampowerDB_CheckAvailable()
   local ok, major, minor, patch = pcall(GetNampowerVersion)
   if ok and major then
-    NampowerDB_Available = true
+    if major > 3 or (major == 3 and minor > 2) or (major == 3 and minor == 2 and patch >= 0) then
+      NampowerDB_Available = true
+    else
+      NampowerDB_Available = false
+    end
   else
     NampowerDB_Available = false
   end
