@@ -79,7 +79,7 @@ Accountant includes translations for the following languages:
 
 - English (default)
 - German — _snj & JokerGermany_
-- Spanish — _Bahamut_
+- Spanish — _jsr1976_
 - French — _Thi0u_
 
 ## Credits
@@ -88,3 +88,4 @@ Accountant includes translations for the following languages:
 - **Shadow & Rophy** — additional development, party gold sharing (v2.2)
 - **Losimagic, Shrill, Fillet** — testing
 - **Razark** — minimap icon code (via Atlas)
+- **terdong** — reset logic fix

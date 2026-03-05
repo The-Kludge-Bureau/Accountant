@@ -1,5 +1,5 @@
 -- esES locale
--- Translations: Bahamut
+-- Translations: jsr1976
 
 if GetLocale() == "esES" then
   -- Header
