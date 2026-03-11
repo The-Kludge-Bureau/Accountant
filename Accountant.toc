@@ -1,5 +1,5 @@
 ## Interface: 11200
-## Title: Accountant v2.3
+## Title: Accountant v3.0
 ## Description: Logs your WoW incomings / outgoings
 ## DefaultState: enabled
 ## SavedVariables: Accountant_SaveData
