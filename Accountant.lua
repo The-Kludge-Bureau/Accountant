@@ -206,6 +206,24 @@ function Accountant_LoadData()
     ACC_Print(ACCLOC_LOADPROFILE .. " " .. Accountant_Player)
   end
 
+  if Accountant_SaveData[Accountant_Player]["options"] == nil then
+    local cdate = date()
+    cdate = string.sub(cdate, 0, 8)
+    Accountant_SaveData[Accountant_Player]["options"] = {
+      showbutton = true,
+      buttonpos = 0,
+      version = Accountant_Version,
+      date = cdate,
+      weekdate = "",
+      weekstart = 3,
+      totalcash = 0,
+    }
+  end
+
+  if Accountant_SaveData[Accountant_Player]["data"] == nil then
+    Accountant_SaveData[Accountant_Player]["data"] = {}
+  end
+
   local order = 1
   for key, value in pairs(Accountant_Data) do
     if Accountant_SaveData[Accountant_Player]["data"][key] == nil then
