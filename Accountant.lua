@@ -99,6 +99,7 @@ function Accountant_OnLoad()
     interval = 30,
     events = { "PLAYER_LOGOUT" },
     multi_file = {
+      legacy_filename = "accountant.lua",
       write_key_fn = function()
         return Accountant_Player
       end,

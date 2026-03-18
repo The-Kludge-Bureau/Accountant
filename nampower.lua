@@ -333,8 +333,26 @@ function NampowerDB_Register(globalName, filename, options)
   end
 
   if entry.multi_file then
-    -- Multi-file mode: load this session's per-key file, then load all other
-    -- known per-key files and merge them into the global.
+    -- Multi-file mode: optionally load a legacy single file first so that any
+    -- crash-recovery data it holds (written by old code before the multi-file
+    -- migration) is picked up before per-character files are merged on top.
+    -- NampowerDB_Load handles the last_saved comparison, so a legacy file that
+    -- is older than SavedVariables simply loses and the global is unchanged.
+    if entry.multi_file.legacy_filename and CustomFileExists(entry.multi_file.legacy_filename) then
+      local ok, err = pcall(ExecuteCustomLuaFile, entry.multi_file.legacy_filename)
+      if not ok then
+        ACC_Print(
+          "|cFFFF0000NampowerDB: failed to load legacy file '"
+            .. entry.multi_file.legacy_filename
+            .. "': "
+            .. tostring(err)
+            .. "|r"
+        )
+      end
+    end
+
+    -- Load this session's per-key file, then load all other known per-key
+    -- files and merge them into the global.
     local writeKey = entry.multi_file.write_key_fn()
     local primaryFile = string.format(filename, writeKey)
 
