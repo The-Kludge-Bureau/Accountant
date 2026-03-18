@@ -92,6 +92,28 @@ end
 function Accountant_OnLoad()
   Accountant_Player = UnitName("player")
 
+  -- Register with NampowerDB before loading data so the merged file contents
+  -- are available when Accountant_LoadData reads Accountant_SaveData.
+  NampowerDB_Register("Accountant_SaveData", "accountant_%s.lua", {
+    periodic = true,
+    interval = 30,
+    events = { "PLAYER_LOGOUT" },
+    multi_file = {
+      write_key_fn = function()
+        return Accountant_Player
+      end,
+      read_keys_fn = function(globalData)
+        local keys = {}
+        for k, _ in pairs(globalData) do
+          if k ~= "last_saved" then
+            table.insert(keys, k)
+          end
+        end
+        return keys
+      end,
+    },
+  })
+
   -- Setup
   Accountant_LoadData()
   Accountant_SetLabels()
@@ -153,13 +175,6 @@ function Accountant_OnLoad()
   PanelTemplates_UpdateTabs(AccountantFrame)
 
   Accountant_CheckDate()
-
-  -- Register with NampowerDB for crash-persistent storage if nampower is available
-  NampowerDB_Register("Accountant_SaveData", "accountant.lua", {
-    periodic = true,
-    interval = 30,
-    events = { "PLAYER_LOGOUT" },
-  })
 
   ACC_Print(ACCLOC_TITLE .. " " .. Accountant_Version .. " " .. ACCLOC_LOADED)
 end

@@ -146,17 +146,44 @@ local function NampowerDB_Write(entry)
     return
   end
 
-  -- Stamp last_saved before serializing
-  tbl.last_saved = time()
+  local ok, result, contents, filename
 
-  local ok, result = pcall(NampowerDB_Serialize, tbl)
-  if not ok then
-    error("NampowerDB: serialization failed for '" .. entry.globalName .. "': " .. tostring(result))
+  if entry.multi_file then
+    -- Multi-file mode: write only the current key's subtable to its own file.
+    -- Each per-character file calls NampowerDB_MultiLoad so reads merge rather
+    -- than replace the global.
+    local key = entry.multi_file.write_key_fn()
+    if key == nil or tbl[key] == nil then
+      return
+    end
+
+    local ts = time()
+    tbl[key]._ts = ts
+
+    local subset = { last_saved = ts }
+    subset[key] = tbl[key]
+
+    ok, result = pcall(NampowerDB_Serialize, subset)
+    if not ok then
+      error("NampowerDB: serialization failed for '" .. entry.globalName .. "': " .. tostring(result))
+    end
+
+    filename = string.format(entry.filename, key)
+    contents = "NampowerDB_MultiLoad(" .. '"' .. entry.globalName .. '", ' .. result .. ")\n"
+  else
+    -- Original single-file mode.
+    tbl.last_saved = time()
+
+    ok, result = pcall(NampowerDB_Serialize, tbl)
+    if not ok then
+      error("NampowerDB: serialization failed for '" .. entry.globalName .. "': " .. tostring(result))
+    end
+
+    filename = entry.filename
+    contents = "NampowerDB_Load(" .. '"' .. entry.globalName .. '", ' .. result .. ")\n"
   end
 
-  local contents = "NampowerDB_Load(" .. '"' .. entry.globalName .. '", ' .. result .. ")\n"
-
-  WriteCustomFile(entry.filename, contents, "w")
+  WriteCustomFile(filename, contents, "w")
 
   -- Collect the garbage created by serialization immediately so it doesn't
   -- accumulate into a large collection that could cause a noticeable hitch
@@ -192,6 +219,41 @@ function NampowerDB_Load(globalName, fileData)
     setglobal(globalName, fileData)
   end
   -- If current is newer, do nothing — the periodic writer will update the file
+end
+
+-- ---------------------------------------------------------------------------
+-- NampowerDB_MultiLoad
+-- Called by per-key files written in multi_file mode.
+-- Merges each key from fileData into the global using per-entry _ts comparison
+-- so two concurrent sessions never clobber each other's data.
+-- ---------------------------------------------------------------------------
+
+function NampowerDB_MultiLoad(globalName, fileData)
+  if type(fileData) ~= "table" then
+    error("NampowerDB: file data for '" .. globalName .. "' is not a table")
+  end
+
+  local current = getglobal(globalName)
+  if current == nil then
+    setglobal(globalName, fileData)
+    return
+  end
+
+  for key, charData in pairs(fileData) do
+    if key ~= "last_saved" and type(charData) == "table" then
+      local currentChar = current[key]
+      if currentChar == nil or (charData._ts or 0) > (currentChar._ts or 0) then
+        current[key] = charData
+      end
+    end
+  end
+
+  -- Keep the global last_saved at the highest value seen across all files
+  if fileData.last_saved then
+    if current.last_saved == nil or fileData.last_saved > current.last_saved then
+      current.last_saved = fileData.last_saved
+    end
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -260,6 +322,7 @@ function NampowerDB_Register(globalName, filename, options)
     interval = interval,
     events = events,
     elapsed = 0,
+    multi_file = options.multi_file or nil,
   }
 
   table.insert(NampowerDB_Registry, entry)
@@ -269,28 +332,83 @@ function NampowerDB_Register(globalName, filename, options)
     NampowerDB_Frame:RegisterEvent(events[i])
   end
 
-  -- If the file exists, execute it now so NampowerDB_Load runs and
-  -- the comparison happens before the addon reads its SavedVariable
-  if CustomFileExists(filename) then
-    local ok, err = pcall(ExecuteCustomLuaFile, filename)
-    if not ok then
-      error(
-        "NampowerDB: failed to load file '"
-          .. filename
-          .. "' for '"
-          .. globalName
-          .. "'.\n"
-          .. "Error: "
-          .. tostring(err)
-          .. "\n"
-          .. "Remove the file manually if you wish to fall back to SavedVariables."
-      )
+  if entry.multi_file then
+    -- Multi-file mode: load this session's per-key file, then load all other
+    -- known per-key files and merge them into the global.
+    local writeKey = entry.multi_file.write_key_fn()
+    local primaryFile = string.format(filename, writeKey)
+
+    if CustomFileExists(primaryFile) then
+      local ok, err = pcall(ExecuteCustomLuaFile, primaryFile)
+      if not ok then
+        error(
+          "NampowerDB: failed to load file '"
+            .. primaryFile
+            .. "' for '"
+            .. globalName
+            .. "'.\n"
+            .. "Error: "
+            .. tostring(err)
+            .. "\n"
+            .. "Remove the file manually if you wish to fall back to SavedVariables."
+        )
+      end
+    else
+      -- No file yet for this key — write current SavedVariables data immediately
+      local tbl = getglobal(globalName)
+      if tbl ~= nil then
+        NampowerDB_Write(entry)
+      end
+    end
+
+    -- Load all other per-key files and merge their data
+    if entry.multi_file.read_keys_fn then
+      local tbl = getglobal(globalName)
+      if tbl ~= nil then
+        local keys = entry.multi_file.read_keys_fn(tbl)
+        for i = 1, table.getn(keys) do
+          local key = keys[i]
+          if key ~= writeKey then
+            local otherFile = string.format(filename, key)
+            if CustomFileExists(otherFile) then
+              local ok, err = pcall(ExecuteCustomLuaFile, otherFile)
+              if not ok then
+                ACC_Print(
+                  "|cFFFF0000NampowerDB: failed to load '"
+                    .. otherFile
+                    .. "': "
+                    .. tostring(err)
+                    .. "|r"
+                )
+              end
+            end
+          end
+        end
+      end
     end
   else
-    -- No file yet — if SavedVariables data exists, write it to file immediately
-    local tbl = getglobal(globalName)
-    if tbl ~= nil then
-      NampowerDB_Write(entry)
+    -- Original single-file mode
+    if CustomFileExists(filename) then
+      local ok, err = pcall(ExecuteCustomLuaFile, filename)
+      if not ok then
+        error(
+          "NampowerDB: failed to load file '"
+            .. filename
+            .. "' for '"
+            .. globalName
+            .. "'.\n"
+            .. "Error: "
+            .. tostring(err)
+            .. "\n"
+            .. "Remove the file manually if you wish to fall back to SavedVariables."
+        )
+      end
+    else
+      -- No file yet — if SavedVariables data exists, write it to file immediately
+      local tbl = getglobal(globalName)
+      if tbl ~= nil then
+        NampowerDB_Write(entry)
+      end
     end
   end
 end
